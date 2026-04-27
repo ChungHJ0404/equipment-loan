@@ -225,11 +225,17 @@
   </div>
 
 </div>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 // ============================================================
 // 設定區
 // ============================================================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDLfP46PMA2nZ0pRDEf71ECtzWyueyawidd6hEC_HKmClEIBJf_mo2HkhOdzKwq--V5Q/exec';
+
+const LIFF_ID = {
+  borrow: '2009908885-lgEOYB0K',
+  return: '2009908885-t7yXarK1',
+};
 
 const MACHINES = [
   'Konica 1',
@@ -268,6 +274,26 @@ if (mode !== 'borrow' && mode !== 'return') {
   document.getElementById('pageTitle').textContent = '無效的連結';
   document.getElementById('formCard').innerHTML = '<p style="color:#e53935;font-size:14px;padding:8px 0;">此連結不正確，請重新掃描正確的 QR Code。</p>';
   throw new Error('invalid mode');
+}
+
+// ============================================================
+// LIFF 初始化（自動抓取 LINE 名稱）
+// ============================================================
+async function initLiff() {
+  try {
+    await liff.init({ liffId: LIFF_ID[mode] });
+    if (liff.isLoggedIn()) {
+      const profile = await liff.getProfile();
+      const nameInput = document.getElementById('borrowerName') || document.getElementById('returnerName');
+      if (nameInput && !nameInput.value) {
+        nameInput.value = profile.displayName;
+      }
+    } else {
+      liff.login();
+    }
+  } catch(e) {
+    console.log('LIFF 初始化失敗，使用一般模式：', e.message);
+  }
 }
 
 // 初始化頁面
@@ -587,6 +613,11 @@ async function submitReturn() {
 // 初始化
 if (mode === 'borrow') renderBorrowForm();
 else renderReturnForm();
+
+// LIFF 初始化（在表單渲染後執行）
+if (typeof liff !== 'undefined') {
+  initLiff();
+}
 </script>
 </body>
 </html>
