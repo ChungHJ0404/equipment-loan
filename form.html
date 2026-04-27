@@ -194,6 +194,8 @@
   .field.error input, .field.error select { border-color: #e53935; }
   .field.error .error-msg { display: block; }
   .timestamp-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 8px; }
+  .name-input-wrap { position: relative; }
+  .name-input-wrap input { width: 100%; }
 </style>
 </head>
 <body>
@@ -225,17 +227,12 @@
   </div>
 
 </div>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 // ============================================================
 // 設定區
 // ============================================================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDLfP46PMA2nZ0pRDEf71ECtzWyueyawidd6hEC_HKmClEIBJf_mo2HkhOdzKwq--V5Q/exec';
 
-const LIFF_ID = {
-  borrow: '2009908885-lgEOYB0K',
-  return: '2009908885-t7yXarK1',
-};
 
 const MACHINES = [
   'Konica 1',
@@ -251,6 +248,13 @@ const LOCATIONS = [
   'OR-45',
   '放射科',
   '其他',
+];
+// 人員名單
+const STAFF = [
+  '康銘元', '游茱棱', '吳詠斯', '李修安', '黃暄喬',
+  '劉濟興', '郭家誠', '魏晧智', '蔡忠霖', '王中琦',
+  '何奇恩', '陳佩琳', '陳映晴', '陳冠樺', '林幸儀',
+  '許育綾', '李乙仙', '鍾翔仁',
 ];
 // ============================================================
 
@@ -363,12 +367,16 @@ function renderBorrowForm() {
   document.getElementById('formContent').innerHTML = `
     <div class="field" id="f-name">
       <label>借用人姓名 <span class="required">*</span></label>
-      <input type="text" id="borrowerName" placeholder="請輸入真實姓名" autocomplete="name">
+      <div class="name-input-wrap">
+        <input type="text" id="borrowerName" placeholder="選擇或輸入姓名" list="staffList" autocomplete="off">
+      </div>
       <div class="error-msg">請填寫姓名</div>
     </div>
     <div class="field">
       <label>實際使用人 <span class="optional">（代借時填寫）</span></label>
-      <input type="text" id="actualUser" placeholder="若本人使用請留空">
+      <div class="name-input-wrap">
+        <input type="text" id="actualUser" placeholder="選擇或輸入姓名（若本人使用請留空）" list="staffList" autocomplete="off">
+      </div>
     </div>
     <div class="field" id="f-machine">
       <label>借用機器 <span class="required">*</span></label>
@@ -519,7 +527,9 @@ function renderReturnForm() {
     </div>
     <div class="field" id="f-rname">
       <label>歸還人姓名 <span class="required">*</span></label>
-      <input type="text" id="returnerName" placeholder="請輸入您的姓名">
+      <div class="name-input-wrap">
+        <input type="text" id="returnerName" placeholder="選擇或輸入姓名" list="staffList" autocomplete="off">
+      </div>
       <div class="error-msg">請填寫姓名</div>
     </div>
     <div class="field" id="f-condition">
@@ -613,6 +623,16 @@ async function submitReturn() {
 // 初始化
 if (mode === 'borrow') renderBorrowForm();
 else renderReturnForm();
+
+// 建立人員選單
+const datalist = document.createElement('datalist');
+datalist.id = 'staffList';
+STAFF.forEach(name => {
+  const opt = document.createElement('option');
+  opt.value = name;
+  datalist.appendChild(opt);
+});
+document.body.appendChild(datalist);
 
 // LIFF 初始化（在表單渲染後執行）
 if (typeof liff !== 'undefined') {
