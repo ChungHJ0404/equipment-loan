@@ -614,10 +614,12 @@ async function submitReturn() {
 if (mode === 'borrow') renderBorrowForm();
 else renderReturnForm();
 
-// LIFF 初始化（在表單渲染後執行）
-if (typeof liff !== 'undefined') {
-  initLiff();
-}
+// LIFF 初始化（等頁面完全載入後執行）
+window.addEventListener('load', function() {
+  if (typeof liff !== 'undefined') {
+    initLiff();
+  }
+});
 </script>
 </body>
 </html>
