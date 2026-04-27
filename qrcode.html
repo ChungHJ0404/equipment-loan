@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code 產生器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif;
+    background: #f5f5f5;
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+  h1 { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+  .subtitle { text-align: center; font-size: 14px; color: #888; margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 720px; margin: 0 auto; }
+  @media (max-width: 540px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .card .desc { font-size: 12px; color: #999; margin-bottom: 20px; }
+  .qr-wrap {
+    width: 180px; height: 180px;
+    margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .url-display {
+    font-size: 11px;
+    color: #aaa;
+    word-break: break-all;
+    margin-bottom: 16px;
+    padding: 8px;
+    background: #f9f9f9;
+    border-radius: 8px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    margin: 4px;
+    text-decoration: none;
+  }
+  .btn-borrow { background: #43a047; color: white; }
+  .btn-return { background: #1976d2; color: white; }
+  .btn-print { background: #f5f5f5; color: #444; border: 1px solid #ddd; }
+
+  .setup-card {
+    max-width: 720px;
+    margin: 20px auto 0;
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .setup-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .field { margin-bottom: 16px; }
+  .field label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
+  .field input {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid #e0e0e0; border-radius: 10px;
+    font-size: 14px; font-family: inherit;
+  }
+  .field input:focus { outline: none; border-color: #43a047; }
+  .apply-btn {
+    padding: 10px 28px;
+    background: #1a1a1a; color: white;
+    border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  @media print {
+    body { background: white; padding: 0; }
+    .setup-card { display: none; }
+    .btn-print { display: none; }
+    .grid { gap: 40px; }
+  }
+</style>
+</head>
+<body>
+<h1>QR Code 產生器</h1>
+<p class="subtitle">產生借用與歸還 QR Code，列印後張貼於機器旁</p>
+
+<div class="setup-card">
+  <h3>⚙️ 設定表單網址</h3>
+  <div class="field">
+    <label>表單網址（form.html 部署後的網址）</label>
+    <input type="text" id="baseUrl" placeholder="例：https://your-site.com/form.html" value="">
+  </div>
+  <button class="apply-btn" onclick="generate()">產生 QR Code</button>
+</div>
+
+<br>
+
+<div class="grid">
+  <div class="card">
+    <h2 style="color:#2e7d32;">📋 借用 QR Code</h2>
+    <p class="desc">掃描此 QR Code 開啟借用表單<br>張貼於機器旁或管理處</p>
+    <div class="qr-wrap" id="qr-borrow"></div>
+    <div class="url-display" id="url-borrow">請先填入表單網址</div>
+    <button class="btn btn-print" onclick="window.print()">🖨️ 列印</button>
+  </div>
+
+  <div class="card">
+    <h2 style="color:#1565c0;">📦 歸還 QR Code</h2>
+    <p class="desc">掃描此 QR Code 開啟歸還表單<br>與借用 QR Code 分開張貼</p>
+    <div class="qr-wrap" id="qr-return"></div>
+    <div class="url-display" id="url-return">請先填入表單網址</div>
+    <button class="btn btn-print" onclick="window.print()">🖨️ 列印</button>
+  </div>
+</div>
+
+<script>
+function generate() {
+  let base = document.getElementById('baseUrl').value.trim();
+  if (!base) { alert('請輸入表單網址'); return; }
+  if (!base.startsWith('http')) base = 'https://' + base;
+
+  const borrowUrl = base + '?mode=borrow';
+  const returnUrl = base + '?mode=return';
+
+  document.getElementById('url-borrow').textContent = borrowUrl;
+  document.getElementById('url-return').textContent = returnUrl;
+
+  document.getElementById('qr-borrow').innerHTML = '';
+  document.getElementById('qr-return').innerHTML = '';
+
+  new QRCode(document.getElementById('qr-borrow'), {
+    text: borrowUrl, width: 180, height: 180,
+    colorDark: '#2e7d32', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  new QRCode(document.getElementById('qr-return'), {
+    text: returnUrl, width: 180, height: 180,
+    colorDark: '#1565c0', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+// 自動偵測當前網域
+const currentBase = window.location.origin + window.location.pathname.replace('qrcode.html','form.html');
+document.getElementById('baseUrl').value = currentBase;
+generate();
+</script>
+</body>
+</html>
