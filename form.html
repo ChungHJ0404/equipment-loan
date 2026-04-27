@@ -478,9 +478,7 @@ function renderReturnForm() {
 
 function selectCondition(val) {
   document.getElementById('opt-good').classList.toggle('selected', val === 'good');
-  document.getElementById('opt-transfer').classList.toggle('selected', val === 'transfer');
   document.getElementById('opt-issue').classList.toggle('selected', val === 'issue');
-  document.getElementById('f-transfer-location').style.display = val === 'transfer' ? 'block' : 'none';
   document.getElementById('f-issue-note').style.display = val === 'issue' ? 'block' : 'none';
 }
 
