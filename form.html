@@ -420,14 +420,33 @@ function renderReturnForm() {
       <div class="error-msg">請填寫姓名</div>
     </div>
     <div class="field" id="f-condition">
-      <label>機器狀態 <span class="required">*</span></label>
+      <label>操作類型 <span class="required">*</span></label>
       <div class="radio-group">
         <label class="radio-option selected" id="opt-good" onclick="selectCondition('good')">
-          <input type="radio" name="condition" value="good" checked> 正常
+          <input type="radio" name="condition" value="good" checked> 歸還
+        </label>
+        <label class="radio-option" id="opt-transfer" onclick="selectCondition('transfer')">
+          <input type="radio" name="condition" value="transfer"> 轉借
         </label>
         <label class="radio-option" id="opt-issue" onclick="selectCondition('issue')">
           <input type="radio" name="condition" value="issue"> 有問題
         </label>
+      </div>
+    </div>
+    <div class="field" id="f-transfer-location" style="display:none;">
+      <label>轉借地點 <span class="required">*</span></label>
+      <select id="transferLocationSelect" onchange="handleTransferLocationChange()">
+        <option value="">請選擇新地點</option>
+        <option>OPD</option>
+        <option>Cathroom</option>
+        <option>OR-21</option>
+        <option>OR-22</option>
+        <option>OR-45</option>
+        <option>放射科</option>
+        <option>其他</option>
+      </select>
+      <div class="location-other" id="transferLocationOther">
+        <input type="text" id="transferLocationOtherInput" placeholder="請輸入地點名稱">
       </div>
     </div>
     <div class="field" id="f-issue-note" style="display:none;">
@@ -449,8 +468,15 @@ function renderReturnForm() {
 
 function selectCondition(val) {
   document.getElementById('opt-good').classList.toggle('selected', val === 'good');
+  document.getElementById('opt-transfer').classList.toggle('selected', val === 'transfer');
   document.getElementById('opt-issue').classList.toggle('selected', val === 'issue');
+  document.getElementById('f-transfer-location').style.display = val === 'transfer' ? 'block' : 'none';
   document.getElementById('f-issue-note').style.display = val === 'issue' ? 'block' : 'none';
+}
+
+function handleTransferLocationChange() {
+  const sel = document.getElementById('transferLocationSelect').value;
+  document.getElementById('transferLocationOther').style.display = sel === '其他' ? 'block' : 'none';
 }
 
 async function submitReturn() {
@@ -458,12 +484,20 @@ async function submitReturn() {
   const name = document.getElementById('returnerName').value.trim();
   const condition = document.querySelector('input[name="condition"]:checked')?.value || 'good';
   const issueNote = document.getElementById('issueNote')?.value.trim() || '';
+  const transferLocationSel = document.getElementById('transferLocationSelect')?.value || '';
+  const transferLocationOther = document.getElementById('transferLocationOtherInput')?.value.trim() || '';
+  const transferLocation = transferLocationSel === '其他' ? transferLocationOther : transferLocationSel;
 
   let valid = true;
   if (!machine) { document.getElementById('f-rmachine').classList.add('error'); valid = false; }
   else document.getElementById('f-rmachine').classList.remove('error');
   if (!name) { document.getElementById('f-rname').classList.add('error'); valid = false; }
   else document.getElementById('f-rname').classList.remove('error');
+  if (condition === 'transfer' && !transferLocation) {
+    document.getElementById('f-transfer-location').classList.add('error'); valid = false;
+  } else {
+    document.getElementById('f-transfer-location').classList.remove('error');
+  }
   if (!valid) return;
 
   const btn = document.querySelector('.btn.return');
@@ -475,7 +509,9 @@ async function submitReturn() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'return', machine, returnerName: name, condition, issueNote,
+        action: condition === 'transfer' ? 'transfer' : 'return',
+        machine, returnerName: name, condition, issueNote,
+        transferLocation,
         returnNote: document.getElementById('returnNote').value.trim(),
         returnTimestamp: now.toISOString(),
       }),
@@ -483,17 +519,18 @@ async function submitReturn() {
     });
   } catch(e) {}
 
+  const isTransfer = condition === 'transfer';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('successCard').style.display = 'block';
   document.getElementById('successScreen').innerHTML = `
-    <div class="success-icon return">📦</div>
-    <h2>歸還登記成功！</h2>
-    <p>感謝您歸還，機器狀態已更新</p>
+    <div class="success-icon return">${isTransfer ? '🔄' : '📦'}</div>
+    <h2>${isTransfer ? '轉借登記成功！' : '歸還登記成功！'}</h2>
+    <p>${isTransfer ? '機器地點已更新' : '感謝您歸還，機器狀態已更新'}</p>
     <div class="info-box" style="margin-top:20px;text-align:left;">
-      歸還人：${name}<br>
+      ${isTransfer ? '轉借人' : '歸還人'}：${name}<br>
       機器：${machine}<br>
-      機器狀態：${condition === 'good' ? '正常' : '有問題（已通知管理員）'}<br>
-      歸還時間：${formatDateTime(now)}
+      ${isTransfer ? '新地點：' + transferLocation : '機器狀態：' + (condition === 'good' ? '正常' : '有問題（已通知管理員）')}<br>
+      時間：${formatDateTime(now)}
     </div>
   `;
 }
