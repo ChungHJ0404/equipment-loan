@@ -379,9 +379,15 @@ function renderBorrowForm() {
       <div class="error-msg">請選擇或填寫地點</div>
     </div>
 
-    <div class="field" id="f-date">
-      <label>借用日期</label>
-      <input type="date" id="borrowDate" value="${formatDate(now)}" readonly style="color:#888;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field" id="f-date">
+        <label>借用日期</label>
+        <input type="date" id="borrowDate" value="${formatDate(now)}" readonly style="color:#888;">
+      </div>
+      <div class="field" id="f-time">
+        <label>借用時間</label>
+        <input type="time" id="borrowTime" value="${formatTime(now)}" readonly style="color:#888;">
+      </div>
     </div>
 
     <div class="field">
@@ -432,6 +438,7 @@ async function submitBorrow() {
     location,
     borrowDate: formatDate(now),
     borrowTime: formatTime(now),
+
     note: document.getElementById('borrowNote').value.trim(),
     scanTimestamp: now.toISOString(),
   };
