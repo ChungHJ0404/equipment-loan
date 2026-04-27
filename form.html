@@ -194,8 +194,7 @@
   .field.error input, .field.error select { border-color: #e53935; }
   .field.error .error-msg { display: block; }
   .timestamp-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 8px; }
-  .name-input-wrap { position: relative; }
-  .name-input-wrap input { width: 100%; }
+  .name-other { margin-top: 8px; display: none; }
 </style>
 </head>
 <body>
@@ -364,18 +363,29 @@ function renderStatusTable(rows) {
 function renderBorrowForm() {
   const machineOptions = MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
   const locationOptions = LOCATIONS.map(l => `<option value="${l}">${l}</option>`).join('');
+  const staffOptions = STAFF.map(s => `<option value="${s}">${s}</option>`).join('');
   document.getElementById('formContent').innerHTML = `
     <div class="field" id="f-name">
       <label>借用人姓名 <span class="required">*</span></label>
-      <div class="name-input-wrap">
-        <input type="text" id="borrowerName" placeholder="選擇或輸入姓名" list="staffList" autocomplete="off">
+      <select id="borrowerName" onchange="handleNameChange('borrowerName','borrowerNameOther')">
+        <option value="">請選擇姓名</option>
+        ${staffOptions}
+        <option value="其他">其他（手動輸入）</option>
+      </select>
+      <div class="name-other" id="borrowerNameOther">
+        <input type="text" id="borrowerNameInput" placeholder="請輸入姓名">
       </div>
       <div class="error-msg">請填寫姓名</div>
     </div>
     <div class="field">
       <label>實際使用人 <span class="optional">（代借時填寫）</span></label>
-      <div class="name-input-wrap">
-        <input type="text" id="actualUser" placeholder="選擇或輸入姓名（若本人使用請留空）" list="staffList" autocomplete="off">
+      <select id="actualUser" onchange="handleNameChange('actualUser','actualUserOther')">
+        <option value="">若本人使用請留空</option>
+        ${staffOptions}
+        <option value="其他">其他（手動輸入）</option>
+      </select>
+      <div class="name-other" id="actualUserOther">
+        <input type="text" id="actualUserInput" placeholder="請輸入姓名">
       </div>
     </div>
     <div class="field" id="f-machine">
@@ -434,6 +444,11 @@ function renderBorrowForm() {
   `;
 }
 
+function handleNameChange(selectId, otherId) {
+  const sel = document.getElementById(selectId).value;
+  document.getElementById(otherId).style.display = sel === '其他' ? 'block' : 'none';
+}
+
 function handleLocationChange() {
   const sel = document.getElementById('locationSelect').value;
   document.getElementById('locationOther').style.display = sel === '其他' ? 'block' : 'none';
@@ -447,7 +462,10 @@ function selectBorrowType(val) {
 async function submitBorrow() {
   if (isSubmitting) return; // 防重複送出
 
-  const name = document.getElementById('borrowerName').value.trim();
+  const borrowerSel = document.getElementById('borrowerName').value;
+  const name = borrowerSel === '其他'
+    ? document.getElementById('borrowerNameInput').value.trim()
+    : borrowerSel;
   const machine = document.getElementById('machineSelect').value;
   const locationSel = document.getElementById('locationSelect').value;
   const locationOther = document.getElementById('locationOtherInput')?.value.trim() || '';
@@ -516,6 +534,7 @@ async function submitBorrow() {
 // ============================================================
 function renderReturnForm() {
   const machineOptions = MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
+  const staffOptions = STAFF.map(s => `<option value="${s}">${s}</option>`).join('');
   document.getElementById('formContent').innerHTML = `
     <div class="field" id="f-rmachine">
       <label>歸還機器 <span class="required">*</span></label>
@@ -527,8 +546,13 @@ function renderReturnForm() {
     </div>
     <div class="field" id="f-rname">
       <label>歸還人姓名 <span class="required">*</span></label>
-      <div class="name-input-wrap">
-        <input type="text" id="returnerName" placeholder="選擇或輸入姓名" list="staffList" autocomplete="off">
+      <select id="returnerName" onchange="handleNameChange('returnerName','returnerNameOther')">
+        <option value="">請選擇姓名</option>
+        ${staffOptions}
+        <option value="其他">其他（手動輸入）</option>
+      </select>
+      <div class="name-other" id="returnerNameOther">
+        <input type="text" id="returnerNameInput" placeholder="請輸入姓名">
       </div>
       <div class="error-msg">請填寫姓名</div>
     </div>
@@ -573,7 +597,10 @@ async function submitReturn() {
   if (isSubmitting) return; // 防重複送出
 
   const machine = document.getElementById('returnMachineSelect').value;
-  const name = document.getElementById('returnerName').value.trim();
+  const returnerSel = document.getElementById('returnerName').value;
+  const name = returnerSel === '其他'
+    ? document.getElementById('returnerNameInput').value.trim()
+    : returnerSel;
   const condition = document.querySelector('input[name="condition"]:checked')?.value || 'good';
   const issueNote = document.getElementById('issueNote')?.value.trim() || '';
 
@@ -624,15 +651,7 @@ async function submitReturn() {
 if (mode === 'borrow') renderBorrowForm();
 else renderReturnForm();
 
-// 建立人員選單
-const datalist = document.createElement('datalist');
-datalist.id = 'staffList';
-STAFF.forEach(name => {
-  const opt = document.createElement('option');
-  opt.value = name;
-  datalist.appendChild(opt);
-});
-document.body.appendChild(datalist);
+
 
 // LIFF 初始化（在表單渲染後執行）
 if (typeof liff !== 'undefined') {
