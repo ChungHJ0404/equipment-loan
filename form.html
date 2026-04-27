@@ -301,6 +301,10 @@ function renderBorrowForm() {
       <input type="text" id="borrowerName" placeholder="請輸入真實姓名" autocomplete="name">
       <div class="error-msg">請填寫姓名</div>
     </div>
+    <div class="field">
+      <label>實際使用人 <span style="color:#aaa;font-weight:400;">（代借時填寫）</span></label>
+      <input type="text" id="actualUser" placeholder="若本人使用請留空">
+    </div>
     <div class="field" id="f-machine">
       <label>借用機器 <span class="required">*</span></label>
       <select id="machineSelect">
@@ -308,6 +312,17 @@ function renderBorrowForm() {
         ${machineOptions}
       </select>
       <div class="error-msg">請選擇機器</div>
+    </div>
+    <div class="field" id="f-borrow-type">
+      <label>操作類型 <span class="required">*</span></label>
+      <div class="radio-group">
+        <label class="radio-option selected" id="opt-new" onclick="selectBorrowType('new')">
+          <input type="radio" name="borrowType" value="new" checked> 新借用
+        </label>
+        <label class="radio-option" id="opt-transfer-borrow" onclick="selectBorrowType('transfer')">
+          <input type="radio" name="borrowType" value="transfer"> 轉借
+        </label>
+      </div>
     </div>
     <div class="field" id="f-location">
       <label>借用地點 <span class="required">*</span></label>
@@ -348,6 +363,11 @@ function handleLocationChange() {
   document.getElementById('locationOther').style.display = sel === '其他' ? 'block' : 'none';
 }
 
+function selectBorrowType(val) {
+  document.getElementById('opt-new').classList.toggle('selected', val === 'new');
+  document.getElementById('opt-transfer-borrow').classList.toggle('selected', val === 'transfer');
+}
+
 async function submitBorrow() {
   const name = document.getElementById('borrowerName').value.trim();
   const machine = document.getElementById('machineSelect').value;
@@ -367,14 +387,21 @@ async function submitBorrow() {
   btn.disabled = true;
   btn.textContent = '送出中...';
 
+  const borrowType = document.querySelector('input[name="borrowType"]:checked')?.value || 'new';
   const loanId = genLoanId();
+
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'borrow', loanId,
-        borrowerName: name, machine, location,
+        action: borrowType === 'transfer' ? 'transfer' : 'borrow',
+        loanId,
+        borrowerName: name,
+        actualUser: document.getElementById('actualUser').value.trim(),
+        machine, location,
+        transferLocation: location,
+        returnerName: name,
         borrowDate: formatDate(now),
         borrowTime: formatTime(now),
         note: document.getElementById('borrowNote').value.trim(),
@@ -384,14 +411,16 @@ async function submitBorrow() {
     });
   } catch(e) {}
 
+  const isTransfer = borrowType === 'transfer';
   document.getElementById('statusTableCard').style.display = 'none';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('successCard').style.display = 'block';
   document.getElementById('successScreen').innerHTML = `
-    <div class="success-icon borrow">✅</div>
-    <h2>借用登記成功！</h2>
+    <div class="success-icon borrow">${isTransfer ? '🔄' : '✅'}</div>
+    <h2>${isTransfer ? '轉借登記成功！' : '借用登記成功！'}</h2>
     <div class="info-box" style="margin-top:20px;text-align:left;">
-      借用人：${name}<br>
+      ${isTransfer ? '轉借人' : '借用人'}：${name}<br>
+      ${document.getElementById('actualUser').value.trim() ? '實際使用人：' + document.getElementById('actualUser').value.trim() + '<br>' : ''}
       機器：${machine}<br>
       地點：${location}<br>
       時間：${formatDateTime(now)}
@@ -420,33 +449,14 @@ function renderReturnForm() {
       <div class="error-msg">請填寫姓名</div>
     </div>
     <div class="field" id="f-condition">
-      <label>操作類型 <span class="required">*</span></label>
+      <label>機器狀態 <span class="required">*</span></label>
       <div class="radio-group">
         <label class="radio-option selected" id="opt-good" onclick="selectCondition('good')">
-          <input type="radio" name="condition" value="good" checked> 歸還
-        </label>
-        <label class="radio-option" id="opt-transfer" onclick="selectCondition('transfer')">
-          <input type="radio" name="condition" value="transfer"> 轉借
+          <input type="radio" name="condition" value="good" checked> 正常
         </label>
         <label class="radio-option" id="opt-issue" onclick="selectCondition('issue')">
           <input type="radio" name="condition" value="issue"> 有問題
         </label>
-      </div>
-    </div>
-    <div class="field" id="f-transfer-location" style="display:none;">
-      <label>轉借地點 <span class="required">*</span></label>
-      <select id="transferLocationSelect" onchange="handleTransferLocationChange()">
-        <option value="">請選擇新地點</option>
-        <option>OPD</option>
-        <option>Cathroom</option>
-        <option>OR-21</option>
-        <option>OR-22</option>
-        <option>OR-45</option>
-        <option>放射科</option>
-        <option>其他</option>
-      </select>
-      <div class="location-other" id="transferLocationOther">
-        <input type="text" id="transferLocationOtherInput" placeholder="請輸入地點名稱">
       </div>
     </div>
     <div class="field" id="f-issue-note" style="display:none;">
