@@ -501,11 +501,7 @@ async function submitReturn() {
   else document.getElementById('f-rmachine').classList.remove('error');
   if (!name) { document.getElementById('f-rname').classList.add('error'); valid = false; }
   else document.getElementById('f-rname').classList.remove('error');
-  if (condition === 'transfer' && !transferLocation) {
-    document.getElementById('f-transfer-location').classList.add('error'); valid = false;
-  } else {
-    document.getElementById('f-transfer-location').classList.remove('error');
-  }
+  // transfer 只在借用表單用，歸還表單不需要
   if (!valid) return;
 
   const btn = document.querySelector('.btn.return');
