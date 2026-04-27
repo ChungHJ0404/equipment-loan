@@ -30,6 +30,8 @@
   .mode-badge.return { background: #e3f2fd; color: #1565c0; }
   .header h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; }
   .header p { font-size: 13px; color: #888; margin-top: 4px; }
+
+  /* 機器總表 */
   .status-table-card {
     background: white;
     border-radius: 16px;
@@ -61,7 +63,26 @@
   }
   .badge-available { background: #e8f5e9; color: #2e7d32; }
   .badge-borrowed { background: #fff3e0; color: #e65100; }
-  .loading-row { text-align: center; font-size: 13px; color: #aaa; padding: 16px 0; }
+
+  /* 載入動畫 */
+  .loading-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 0;
+    font-size: 13px;
+    color: #aaa;
+  }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #43a047;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .card {
     background: white;
     border-radius: 16px;
@@ -78,6 +99,7 @@
     margin-bottom: 6px;
   }
   .field label .required { color: #e53935; margin-left: 2px; }
+  .field label .optional { color: #aaa; font-weight: 400; font-size: 12px; margin-left: 4px; }
   .field input,
   .field select,
   .field textarea {
@@ -106,14 +128,15 @@
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
     font-size: 14px;
     color: #444;
     transition: all 0.2s;
     background: #fafafa;
+    user-select: none;
   }
   .radio-option input[type="radio"] { display: none; }
-  .radio-option.selected { border-color: #1976d2; background: #e3f2fd; color: #1565c0; }
+  .radio-option.selected { border-color: #1976d2; background: #e3f2fd; color: #1565c0; font-weight: 600; }
   .btn {
     width: 100%;
     padding: 14px;
@@ -125,13 +148,26 @@
     font-family: inherit;
     transition: transform 0.1s, opacity 0.2s;
     letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
   .btn:active { transform: scale(0.98); }
   .btn.borrow { background: #43a047; color: white; }
   .btn.borrow:hover { background: #388e3c; }
   .btn.return { background: #1976d2; color: white; }
   .btn.return:hover { background: #1565c0; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn-spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+  .btn:disabled .btn-spinner { display: block; }
   .info-box {
     background: #f9f9f9;
     border: 1px solid #ebebeb;
@@ -154,17 +190,6 @@
   .success-icon.return { background: #e3f2fd; }
   .success-screen h2 { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
   .success-screen p { font-size: 14px; color: #666; line-height: 1.6; }
-  .loan-id {
-    display: inline-block;
-    background: #f0f0f0;
-    border-radius: 8px;
-    padding: 8px 18px;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: #1a1a1a;
-    margin: 14px 0 6px;
-  }
   .error-msg { color: #e53935; font-size: 12px; margin-top: 4px; display: none; }
   .field.error input, .field.error select { border-color: #e53935; }
   .field.error .error-msg { display: block; }
@@ -180,16 +205,21 @@
     <p id="pageSubtitle"></p>
   </div>
 
+  <!-- 機器總表（借用模式才顯示） -->
   <div class="status-table-card" id="statusTableCard" style="display:none;">
     <div class="status-table-title">📋 機器目前狀態</div>
-    <div id="statusTableBody"><div class="loading-row">載入中...</div></div>
+    <div id="statusTableBody">
+      <div class="loading-row"><div class="spinner"></div>載入中...</div>
+    </div>
   </div>
 
+  <!-- 表單 -->
   <div class="card" id="formCard">
     <div id="formContent"></div>
     <div class="timestamp-note" id="timestampNote"></div>
   </div>
 
+  <!-- 成功畫面 -->
   <div class="card" id="successCard" style="display:none;">
     <div class="success-screen" id="successScreen"></div>
   </div>
@@ -221,6 +251,7 @@ const LOCATIONS = [
 const params = new URLSearchParams(window.location.search);
 const mode = params.get('mode');
 const now = new Date();
+let isSubmitting = false; // 防重複送出
 
 function formatDate(d) { return d.toISOString().slice(0,10); }
 function formatTime(d) { return d.toTimeString().slice(0,5); }
@@ -231,6 +262,7 @@ function genLoanId() {
   return `BRW-${formatDate(now).replace(/-/g,'')}-${Math.floor(Math.random()*9000+1000)}`;
 }
 
+// 無效連結
 if (mode !== 'borrow' && mode !== 'return') {
   document.getElementById('modeBadge').textContent = '錯誤';
   document.getElementById('pageTitle').textContent = '無效的連結';
@@ -238,6 +270,7 @@ if (mode !== 'borrow' && mode !== 'return') {
   throw new Error('invalid mode');
 }
 
+// 初始化頁面
 if (mode === 'borrow') {
   document.getElementById('modeBadge').textContent = '借用登記';
   document.getElementById('modeBadge').className = 'mode-badge borrow';
@@ -262,19 +295,25 @@ document.getElementById('timestampNote').textContent =
 // ============================================================
 async function loadMachineStatus() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=status`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=status`, {
+      signal: AbortSignal.timeout(6000)
+    });
     const data = await res.json();
     if (data.ok && data.machines) {
       renderStatusTable(MACHINES.map(m => {
         const info = data.machines[m];
         return info && info.status === '借出中'
-          ? { machine: m, status: '借出中', borrowerName: info.borrowerName, location: info.location }
+          ? { machine: m, status: '借出中', borrowerName: info.actualUser || info.borrowerName, location: info.location }
           : { machine: m, status: '可借用' };
       }));
       return;
     }
-  } catch(e) {}
-  renderStatusTable(MACHINES.map(m => ({ machine: m, status: '可借用' })));
+  } catch(e) {
+    console.log('載入機器狀態失敗：', e.message);
+  }
+  // 載入失敗顯示提示
+  document.getElementById('statusTableBody').innerHTML =
+    '<div class="loading-row" style="color:#e65100;">⚠ 無法載入狀態，請重新整理</div>';
 }
 
 function renderStatusTable(rows) {
@@ -302,7 +341,7 @@ function renderBorrowForm() {
       <div class="error-msg">請填寫姓名</div>
     </div>
     <div class="field">
-      <label>實際使用人 <span style="color:#aaa;font-weight:400;">（代借時填寫）</span></label>
+      <label>實際使用人 <span class="optional">（代借時填寫）</span></label>
       <input type="text" id="actualUser" placeholder="若本人使用請留空">
     </div>
     <div class="field" id="f-machine">
@@ -346,15 +385,18 @@ function renderBorrowForm() {
       </div>
     </div>
     <div class="field">
-      <label>備註</label>
-      <textarea id="borrowNote" placeholder="選填"></textarea>
+      <label>備註 <span class="optional">（選填）</span></label>
+      <textarea id="borrowNote" placeholder="地點補充或用途說明"></textarea>
     </div>
     <div class="info-box">
       ・借出中的機器無法重複借用<br>
       ・掃描時間已由系統自動記錄
     </div>
     <br>
-    <button class="btn borrow" onclick="submitBorrow()">確認借用</button>
+    <button class="btn borrow" id="borrowBtn" onclick="submitBorrow()">
+      <div class="btn-spinner"></div>
+      確認借用
+    </button>
   `;
 }
 
@@ -369,6 +411,8 @@ function selectBorrowType(val) {
 }
 
 async function submitBorrow() {
+  if (isSubmitting) return; // 防重複送出
+
   const name = document.getElementById('borrowerName').value.trim();
   const machine = document.getElementById('machineSelect').value;
   const locationSel = document.getElementById('locationSelect').value;
@@ -383,12 +427,16 @@ async function submitBorrow() {
   });
   if (!valid) return;
 
-  const btn = document.querySelector('.btn.borrow');
+  // 開始送出
+  isSubmitting = true;
+  const btn = document.getElementById('borrowBtn');
   btn.disabled = true;
-  btn.textContent = '送出中...';
+  btn.querySelector('.btn-spinner').style.display = 'block';
+  btn.childNodes[btn.childNodes.length - 1].textContent = ' 送出中...';
 
   const borrowType = document.querySelector('input[name="borrowType"]:checked')?.value || 'new';
   const loanId = genLoanId();
+  const actualUser = document.getElementById('actualUser').value.trim();
 
   try {
     await fetch(APPS_SCRIPT_URL, {
@@ -398,7 +446,7 @@ async function submitBorrow() {
         action: borrowType === 'transfer' ? 'transfer' : 'borrow',
         loanId,
         borrowerName: name,
-        actualUser: document.getElementById('actualUser').value.trim(),
+        actualUser,
         machine, location,
         transferLocation: location,
         returnerName: name,
@@ -420,7 +468,7 @@ async function submitBorrow() {
     <h2>${isTransfer ? '轉借登記成功！' : '借用登記成功！'}</h2>
     <div class="info-box" style="margin-top:20px;text-align:left;">
       ${isTransfer ? '轉借人' : '借用人'}：${name}<br>
-      ${document.getElementById('actualUser').value.trim() ? '實際使用人：' + document.getElementById('actualUser').value.trim() + '<br>' : ''}
+      ${actualUser ? '實際使用人：' + actualUser + '<br>' : ''}
       機器：${machine}<br>
       地點：${location}<br>
       時間：${formatDateTime(now)}
@@ -464,15 +512,18 @@ function renderReturnForm() {
       <textarea id="issueNote" placeholder="請描述機器狀況"></textarea>
     </div>
     <div class="field">
-      <label>備註</label>
-      <textarea id="returnNote" placeholder="選填"></textarea>
+      <label>備註 <span class="optional">（選填）</span></label>
+      <textarea id="returnNote" placeholder="其他說明"></textarea>
     </div>
     <div class="info-box">
       ・歸還時間由系統自動記錄<br>
       ・若機器有損壞請務必如實填寫
     </div>
     <br>
-    <button class="btn return" onclick="submitReturn()">確認歸還</button>
+    <button class="btn return" id="returnBtn" onclick="submitReturn()">
+      <div class="btn-spinner"></div>
+      確認歸還
+    </button>
   `;
 }
 
@@ -482,40 +533,35 @@ function selectCondition(val) {
   document.getElementById('f-issue-note').style.display = val === 'issue' ? 'block' : 'none';
 }
 
-function handleTransferLocationChange() {
-  const sel = document.getElementById('transferLocationSelect').value;
-  document.getElementById('transferLocationOther').style.display = sel === '其他' ? 'block' : 'none';
-}
-
 async function submitReturn() {
+  if (isSubmitting) return; // 防重複送出
+
   const machine = document.getElementById('returnMachineSelect').value;
   const name = document.getElementById('returnerName').value.trim();
   const condition = document.querySelector('input[name="condition"]:checked')?.value || 'good';
   const issueNote = document.getElementById('issueNote')?.value.trim() || '';
-  const transferLocationSel = document.getElementById('transferLocationSelect')?.value || '';
-  const transferLocationOther = document.getElementById('transferLocationOtherInput')?.value.trim() || '';
-  const transferLocation = transferLocationSel === '其他' ? transferLocationOther : transferLocationSel;
 
   let valid = true;
   if (!machine) { document.getElementById('f-rmachine').classList.add('error'); valid = false; }
   else document.getElementById('f-rmachine').classList.remove('error');
   if (!name) { document.getElementById('f-rname').classList.add('error'); valid = false; }
   else document.getElementById('f-rname').classList.remove('error');
-  // transfer 只在借用表單用，歸還表單不需要
   if (!valid) return;
 
-  const btn = document.querySelector('.btn.return');
+  // 開始送出
+  isSubmitting = true;
+  const btn = document.getElementById('returnBtn');
   btn.disabled = true;
-  btn.textContent = '送出中...';
+  btn.querySelector('.btn-spinner').style.display = 'block';
+  btn.childNodes[btn.childNodes.length - 1].textContent = ' 送出中...';
 
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: condition === 'transfer' ? 'transfer' : 'return',
+        action: 'return',
         machine, returnerName: name, condition, issueNote,
-        transferLocation,
         returnNote: document.getElementById('returnNote').value.trim(),
         returnTimestamp: now.toISOString(),
       }),
@@ -523,17 +569,16 @@ async function submitReturn() {
     });
   } catch(e) {}
 
-  const isTransfer = condition === 'transfer';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('successCard').style.display = 'block';
   document.getElementById('successScreen').innerHTML = `
-    <div class="success-icon return">${isTransfer ? '🔄' : '📦'}</div>
-    <h2>${isTransfer ? '轉借登記成功！' : '歸還登記成功！'}</h2>
-    <p>${isTransfer ? '機器地點已更新' : '感謝您歸還，機器狀態已更新'}</p>
+    <div class="success-icon return">📦</div>
+    <h2>歸還登記成功！</h2>
+    <p>感謝您歸還，機器狀態已更新</p>
     <div class="info-box" style="margin-top:20px;text-align:left;">
-      ${isTransfer ? '轉借人' : '歸還人'}：${name}<br>
+      歸還人：${name}<br>
       機器：${machine}<br>
-      ${isTransfer ? '新地點：' + transferLocation : '機器狀態：' + (condition === 'good' ? '正常' : '有問題（已通知管理員）')}<br>
+      機器狀態：${condition === 'good' ? '正常' : '有問題（已通知管理員）'}<br>
       時間：${formatDateTime(now)}
     </div>
   `;
