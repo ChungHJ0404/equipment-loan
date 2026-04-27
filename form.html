@@ -30,8 +30,6 @@
   .mode-badge.return { background: #e3f2fd; color: #1565c0; }
   .header h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; }
   .header p { font-size: 13px; color: #888; margin-top: 4px; }
-
-  /* 機器總表 */
   .status-table-card {
     background: white;
     border-radius: 16px;
@@ -39,12 +37,7 @@
     box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     margin-bottom: 16px;
   }
-  .status-table-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #333;
-    margin-bottom: 12px;
-  }
+  .status-table-title { font-size: 14px; font-weight: 700; color: #333; margin-bottom: 12px; }
   .machine-row {
     display: flex;
     align-items: center;
@@ -69,7 +62,6 @@
   .badge-available { background: #e8f5e9; color: #2e7d32; }
   .badge-borrowed { background: #fff3e0; color: #e65100; }
   .loading-row { text-align: center; font-size: 13px; color: #aaa; padding: 16px 0; }
-
   .card {
     background: white;
     border-radius: 16px;
@@ -102,15 +94,9 @@
   }
   .field input:focus,
   .field select:focus,
-  .field textarea:focus {
-    outline: none;
-    border-color: #4caf50;
-    background: #fff;
-  }
+  .field textarea:focus { outline: none; border-color: #4caf50; background: #fff; }
   .field textarea { resize: vertical; min-height: 80px; }
-
   .location-other { margin-top: 8px; display: none; }
-
   .radio-group { display: flex; gap: 12px; }
   .radio-option {
     flex: 1;
@@ -128,7 +114,6 @@
   }
   .radio-option input[type="radio"] { accent-color: #1976d2; width: 16px; height: 16px; }
   .radio-option.selected { border-color: #1976d2; background: #e3f2fd; color: #1565c0; }
-
   .btn {
     width: 100%;
     padding: 14px;
@@ -147,7 +132,6 @@
   .btn.return { background: #1976d2; color: white; }
   .btn.return:hover { background: #1565c0; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
   .info-box {
     background: #f9f9f9;
     border: 1px solid #ebebeb;
@@ -185,32 +169,6 @@
   .field.error input, .field.error select { border-color: #e53935; }
   .field.error .error-msg { display: block; }
   .timestamp-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 8px; }
-  .loan-lookup { display: flex; gap: 8px; }
-  .loan-lookup input { flex: 1; }
-  .lookup-btn {
-    padding: 11px 16px;
-    border: 1.5px solid #1976d2;
-    border-radius: 10px;
-    background: white;
-    color: #1976d2;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    font-family: inherit;
-  }
-  .lookup-btn:hover { background: #e3f2fd; }
-  .found-record {
-    display: none;
-    background: #e3f2fd;
-    border: 1px solid #90caf9;
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 13px;
-    color: #1565c0;
-    margin-top: 8px;
-    line-height: 1.8;
-  }
 </style>
 </head>
 <body>
@@ -222,30 +180,24 @@
     <p id="pageSubtitle"></p>
   </div>
 
-  <!-- 機器總表（借用模式才顯示） -->
   <div class="status-table-card" id="statusTableCard" style="display:none;">
     <div class="status-table-title">📋 機器目前狀態</div>
-    <div id="statusTableBody">
-      <div class="loading-row">載入中...</div>
-    </div>
+    <div id="statusTableBody"><div class="loading-row">載入中...</div></div>
   </div>
 
-  <!-- 表單主體 -->
   <div class="card" id="formCard">
     <div id="formContent"></div>
     <div class="timestamp-note" id="timestampNote"></div>
   </div>
 
-  <!-- 成功畫面 -->
   <div class="card" id="successCard" style="display:none;">
     <div class="success-screen" id="successScreen"></div>
   </div>
 
 </div>
-
 <script>
 // ============================================================
-// 設定區：填入你的 Apps Script 網址
+// 設定區
 // ============================================================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 
@@ -276,9 +228,7 @@ function formatDateTime(d) {
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${formatTime(d)}`;
 }
 function genLoanId() {
-  const date = formatDate(now).replace(/-/g,'');
-  const rand = Math.floor(Math.random()*9000+1000);
-  return `BRW-${date}-${rand}`;
+  return `BRW-${formatDate(now).replace(/-/g,'')}-${Math.floor(Math.random()*9000+1000)}`;
 }
 
 if (mode !== 'borrow' && mode !== 'return') {
@@ -300,7 +250,7 @@ if (mode === 'borrow') {
   document.getElementById('modeBadge').textContent = '歸還登記';
   document.getElementById('modeBadge').className = 'mode-badge return';
   document.getElementById('pageTitle').textContent = '機器歸還表單';
-  document.getElementById('pageSubtitle').textContent = '請輸入借用 ID 後確認歸還';
+  document.getElementById('pageSubtitle').textContent = '選擇機器並填寫姓名即可歸還';
   document.title = '機器歸還表單';
 }
 
@@ -311,29 +261,24 @@ document.getElementById('timestampNote').textContent =
 // 機器總表
 // ============================================================
 async function loadMachineStatus() {
-  const body = document.getElementById('statusTableBody');
   try {
     const res = await fetch(`${APPS_SCRIPT_URL}?action=status`, { signal: AbortSignal.timeout(5000) });
     const data = await res.json();
     if (data.ok && data.machines) {
-      const rows = MACHINES.map(m => {
+      renderStatusTable(MACHINES.map(m => {
         const info = data.machines[m];
-        if (info && info.status === '借出中') {
-          return { machine: m, status: '借出中', borrowerName: info.borrowerName, location: info.location };
-        }
-        return { machine: m, status: '可借用', borrowerName: '', location: '' };
-      });
-      renderStatusTable(rows);
+        return info && info.status === '借出中'
+          ? { machine: m, status: '借出中', borrowerName: info.borrowerName, location: info.location }
+          : { machine: m, status: '可借用' };
+      }));
       return;
     }
   } catch(e) {}
-  // 後端未設定時，預設全部可借用
   renderStatusTable(MACHINES.map(m => ({ machine: m, status: '可借用' })));
 }
 
 function renderStatusTable(rows) {
-  const body = document.getElementById('statusTableBody');
-  body.innerHTML = rows.map(r => `
+  document.getElementById('statusTableBody').innerHTML = rows.map(r => `
     <div class="machine-row">
       <div>
         <div class="machine-name">${r.machine}</div>
@@ -350,14 +295,12 @@ function renderStatusTable(rows) {
 function renderBorrowForm() {
   const machineOptions = MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
   const locationOptions = LOCATIONS.map(l => `<option value="${l}">${l}</option>`).join('');
-
   document.getElementById('formContent').innerHTML = `
     <div class="field" id="f-name">
       <label>借用人姓名 <span class="required">*</span></label>
       <input type="text" id="borrowerName" placeholder="請輸入真實姓名" autocomplete="name">
       <div class="error-msg">請填寫姓名</div>
     </div>
-
     <div class="field" id="f-machine">
       <label>借用機器 <span class="required">*</span></label>
       <select id="machineSelect">
@@ -366,7 +309,6 @@ function renderBorrowForm() {
       </select>
       <div class="error-msg">請選擇機器</div>
     </div>
-
     <div class="field" id="f-location">
       <label>借用地點 <span class="required">*</span></label>
       <select id="locationSelect" onchange="handleLocationChange()">
@@ -378,28 +320,24 @@ function renderBorrowForm() {
       </div>
       <div class="error-msg">請選擇或填寫地點</div>
     </div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field" id="f-date">
+      <div class="field">
         <label>借用日期</label>
         <input type="date" id="borrowDate" value="${formatDate(now)}" readonly style="color:#888;">
       </div>
-      <div class="field" id="f-time">
+      <div class="field">
         <label>借用時間</label>
         <input type="time" id="borrowTime" value="${formatTime(now)}" readonly style="color:#888;">
       </div>
     </div>
-
     <div class="field">
       <label>備註</label>
       <textarea id="borrowNote" placeholder="選填"></textarea>
     </div>
-
     <div class="info-box">
-      ・借用 ID 將在送出後顯示，歸還時需要輸入，請截圖儲存<br>
-      ・借出中的機器無法重複借用
+      ・借出中的機器無法重複借用<br>
+      ・掃描時間已由系統自動記錄
     </div>
-
     <br>
     <button class="btn borrow" onclick="submitBorrow()">確認借用</button>
   `;
@@ -430,40 +368,28 @@ async function submitBorrow() {
   btn.textContent = '送出中...';
 
   const loanId = genLoanId();
-  const payload = {
-    action: 'borrow',
-    loanId,
-    borrowerName: name,
-    machine,
-    location,
-    borrowDate: formatDate(now),
-    borrowTime: formatTime(now),
-
-    note: document.getElementById('borrowNote').value.trim(),
-    scanTimestamp: now.toISOString(),
-  };
-
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: 'borrow', loanId,
+        borrowerName: name, machine, location,
+        borrowDate: formatDate(now),
+        borrowTime: formatTime(now),
+        note: document.getElementById('borrowNote').value.trim(),
+        scanTimestamp: now.toISOString(),
+      }),
       mode: 'no-cors',
     });
   } catch(e) {}
 
-  showBorrowSuccess(loanId, name, machine, location);
-}
-
-function showBorrowSuccess(loanId, name, machine, location) {
   document.getElementById('statusTableCard').style.display = 'none';
   document.getElementById('formCard').style.display = 'none';
   document.getElementById('successCard').style.display = 'block';
   document.getElementById('successScreen').innerHTML = `
     <div class="success-icon borrow">✅</div>
     <h2>借用登記成功！</h2>
-    <p>請截圖保存借用 ID，歸還時需要輸入</p>
-    <div class="loan-id">${loanId}</div>
     <div class="info-box" style="margin-top:20px;text-align:left;">
       借用人：${name}<br>
       機器：${machine}<br>
@@ -478,23 +404,21 @@ function showBorrowSuccess(loanId, name, machine, location) {
 // 歸還表單
 // ============================================================
 function renderReturnForm() {
+  const machineOptions = MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
   document.getElementById('formContent').innerHTML = `
-    <div class="field" id="f-loanid">
-      <label>借用 ID <span class="required">*</span></label>
-      <div class="loan-lookup">
-        <input type="text" id="loanIdInput" placeholder="例：BRW-20240427-1234" style="text-transform:uppercase;">
-        <button class="lookup-btn" onclick="lookupLoan()">查詢</button>
-      </div>
-      <div class="found-record" id="foundRecord"></div>
-      <div class="error-msg">請輸入正確的借用 ID</div>
+    <div class="field" id="f-rmachine">
+      <label>歸還機器 <span class="required">*</span></label>
+      <select id="returnMachineSelect">
+        <option value="">請選擇機器</option>
+        ${machineOptions}
+      </select>
+      <div class="error-msg">請選擇機器</div>
     </div>
-
     <div class="field" id="f-rname">
-      <label>歸還人姓名確認 <span class="required">*</span></label>
+      <label>歸還人姓名 <span class="required">*</span></label>
       <input type="text" id="returnerName" placeholder="請輸入當初借用時的姓名">
       <div class="error-msg">請填寫姓名</div>
     </div>
-
     <div class="field" id="f-condition">
       <label>機器狀態 <span class="required">*</span></label>
       <div class="radio-group">
@@ -506,22 +430,18 @@ function renderReturnForm() {
         </label>
       </div>
     </div>
-
     <div class="field" id="f-issue-note" style="display:none;">
       <label>問題說明 <span class="required">*</span></label>
       <textarea id="issueNote" placeholder="請描述機器狀況"></textarea>
     </div>
-
     <div class="field">
       <label>備註</label>
       <textarea id="returnNote" placeholder="選填"></textarea>
     </div>
-
     <div class="info-box">
       ・歸還時間由系統自動記錄<br>
       ・若機器有損壞請務必如實填寫
     </div>
-
     <br>
     <button class="btn return" onclick="submitReturn()">確認歸還</button>
   `;
@@ -533,41 +453,15 @@ function selectCondition(val) {
   document.getElementById('f-issue-note').style.display = val === 'issue' ? 'block' : 'none';
 }
 
-async function lookupLoan() {
-  const id = document.getElementById('loanIdInput').value.trim().toUpperCase();
-  if (!id) return;
-  const record = document.getElementById('foundRecord');
-  record.style.display = 'block';
-  record.style.background = '#e3f2fd';
-  record.style.borderColor = '#90caf9';
-  record.style.color = '#1565c0';
-  record.textContent = '查詢中...';
-  try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=lookup&loanId=${encodeURIComponent(id)}`);
-    const data = await res.json();
-    if (data.found) {
-      record.innerHTML = `✓ 找到紀錄<br>借用人：${data.borrowerName}　機器：${data.machine}<br>地點：${data.location}　借用時間：${data.borrowTime}`;
-      document.getElementById('returnerName').value = data.borrowerName;
-    } else {
-      record.style.background = '#fce4ec';
-      record.style.borderColor = '#ef9a9a';
-      record.style.color = '#b71c1c';
-      record.textContent = '找不到此借用 ID，請確認後再試';
-    }
-  } catch(e) {
-    record.textContent = '（網路異常，請手動填寫姓名後送出）';
-  }
-}
-
 async function submitReturn() {
-  const loanId = document.getElementById('loanIdInput').value.trim().toUpperCase();
+  const machine = document.getElementById('returnMachineSelect').value;
   const name = document.getElementById('returnerName').value.trim();
   const condition = document.querySelector('input[name="condition"]:checked')?.value || 'good';
   const issueNote = document.getElementById('issueNote')?.value.trim() || '';
 
   let valid = true;
-  if (!loanId) { document.getElementById('f-loanid').classList.add('error'); valid = false; }
-  else document.getElementById('f-loanid').classList.remove('error');
+  if (!machine) { document.getElementById('f-rmachine').classList.add('error'); valid = false; }
+  else document.getElementById('f-rmachine').classList.remove('error');
   if (!name) { document.getElementById('f-rname').classList.add('error'); valid = false; }
   else document.getElementById('f-rname').classList.remove('error');
   if (!valid) return;
@@ -581,7 +475,7 @@ async function submitReturn() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'return', loanId, returnerName: name, condition, issueNote,
+        action: 'return', machine, returnerName: name, condition, issueNote,
         returnNote: document.getElementById('returnNote').value.trim(),
         returnTimestamp: now.toISOString(),
       }),
@@ -595,9 +489,9 @@ async function submitReturn() {
     <div class="success-icon return">📦</div>
     <h2>歸還登記成功！</h2>
     <p>感謝您歸還，機器狀態已更新</p>
-    <div class="loan-id">${loanId}</div>
     <div class="info-box" style="margin-top:20px;text-align:left;">
       歸還人：${name}<br>
+      機器：${machine}<br>
       機器狀態：${condition === 'good' ? '正常' : '有問題（已通知管理員）'}<br>
       歸還時間：${formatDateTime(now)}
     </div>
