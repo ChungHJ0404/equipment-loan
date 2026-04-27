@@ -15,14 +15,8 @@
     justify-content: center;
     padding: 24px 16px 48px;
   }
-  .container {
-    width: 100%;
-    max-width: 480px;
-  }
-  .header {
-    text-align: center;
-    margin-bottom: 24px;
-  }
+  .container { width: 100%; max-width: 480px; }
+  .header { text-align: center; margin-bottom: 20px; }
   .mode-badge {
     display: inline-block;
     padding: 6px 20px;
@@ -36,6 +30,45 @@
   .mode-badge.return { background: #e3f2fd; color: #1565c0; }
   .header h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; }
   .header p { font-size: 13px; color: #888; margin-top: 4px; }
+
+  /* 機器總表 */
+  .status-table-card {
+    background: white;
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    margin-bottom: 16px;
+  }
+  .status-table-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 12px;
+  }
+  .machine-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+  }
+  .machine-row:last-child { border-bottom: none; }
+  .machine-name { font-weight: 600; color: #1a1a1a; }
+  .machine-info { font-size: 12px; color: #888; margin-top: 2px; }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .badge-available { background: #e8f5e9; color: #2e7d32; }
+  .badge-borrowed { background: #fff3e0; color: #e65100; }
+  .loading-row { text-align: center; font-size: 13px; color: #aaa; padding: 16px 0; }
 
   .card {
     background: white;
@@ -74,12 +107,9 @@
     border-color: #4caf50;
     background: #fff;
   }
-  .field.return-mode input:focus,
-  .field.return-mode select:focus {
-    border-color: #1976d2;
-  }
   .field textarea { resize: vertical; min-height: 80px; }
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .location-other { margin-top: 8px; display: none; }
 
   .radio-group { display: flex; gap: 12px; }
   .radio-option {
@@ -128,12 +158,7 @@
     line-height: 1.8;
     margin-top: 8px;
   }
-
-  .success-screen {
-    display: none;
-    text-align: center;
-    padding: 32px 0 16px;
-  }
+  .success-screen { text-align: center; padding: 32px 0 16px; }
   .success-icon {
     width: 64px; height: 64px;
     border-radius: 50%;
@@ -156,31 +181,11 @@
     color: #1a1a1a;
     margin: 14px 0 6px;
   }
-
-  .error-msg {
-    color: #e53935;
-    font-size: 12px;
-    margin-top: 4px;
-    display: none;
-  }
-  .field.error input,
-  .field.error select {
-    border-color: #e53935;
-  }
+  .error-msg { color: #e53935; font-size: 12px; margin-top: 4px; display: none; }
+  .field.error input, .field.error select { border-color: #e53935; }
   .field.error .error-msg { display: block; }
-
-  .timestamp-note {
-    text-align: center;
-    font-size: 11px;
-    color: #bbb;
-    margin-top: 8px;
-  }
-
-  /* 搜尋借用紀錄（歸還模式） */
-  .loan-lookup {
-    display: flex;
-    gap: 8px;
-  }
+  .timestamp-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 8px; }
+  .loan-lookup { display: flex; gap: 8px; }
   .loan-lookup input { flex: 1; }
   .lookup-btn {
     padding: 11px 16px;
@@ -195,7 +200,6 @@
     font-family: inherit;
   }
   .lookup-btn:hover { background: #e3f2fd; }
-
   .found-record {
     display: none;
     background: #e3f2fd;
@@ -218,6 +222,14 @@
     <p id="pageSubtitle"></p>
   </div>
 
+  <!-- 機器總表（借用模式才顯示） -->
+  <div class="status-table-card" id="statusTableCard" style="display:none;">
+    <div class="status-table-title">📋 機器目前狀態</div>
+    <div id="statusTableBody">
+      <div class="loading-row">載入中...</div>
+    </div>
+  </div>
+
   <!-- 表單主體 -->
   <div class="card" id="formCard">
     <div id="formContent"></div>
@@ -226,49 +238,40 @@
 
   <!-- 成功畫面 -->
   <div class="card" id="successCard" style="display:none;">
-    <div class="success-screen" id="successScreen">
-    </div>
+    <div class="success-screen" id="successScreen"></div>
   </div>
 
 </div>
 
 <script>
 // ============================================================
-// 設定區：請在部署後填入你的 Apps Script Web App 網址
+// 設定區：填入你的 Apps Script 網址
 // ============================================================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 
-// 機器清單（與 Google Sheets 同步，或直接在此列出）
 const MACHINES = [
-  '示波器 A-01',
-  '電源供應器 B-03',
-  '三用電錶 C-02',
-  '訊號產生器 D-01',
-  '焊接工具組 E-01',
-  '熱像儀 F-01',
-  // 新增機器請在此加入
+  'Konica 1',
+  'Konica 2',
+  'CVS 1',
 ];
 
-// 地點清單
 const LOCATIONS = [
-  '實驗室 B203',
-  '工作室 1F',
-  '研究室 301',
-  '戶外測試區',
-  '其他（請填備註）',
+  'OPD',
+  'Cathroom',
+  'OR-21',
+  'OR-22',
+  'OR-45',
+  '放射科',
+  '其他',
 ];
 // ============================================================
 
 const params = new URLSearchParams(window.location.search);
-const mode = params.get('mode'); // 'borrow' or 'return'
+const mode = params.get('mode');
 const now = new Date();
 
-function formatDate(d) {
-  return d.toISOString().slice(0,10);
-}
-function formatTime(d) {
-  return d.toTimeString().slice(0,5);
-}
+function formatDate(d) { return d.toISOString().slice(0,10); }
+function formatTime(d) { return d.toTimeString().slice(0,5); }
 function formatDateTime(d) {
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${formatTime(d)}`;
 }
@@ -278,21 +281,21 @@ function genLoanId() {
   return `BRW-${date}-${rand}`;
 }
 
-// 防止同一個 QR Code 判斷
 if (mode !== 'borrow' && mode !== 'return') {
   document.getElementById('modeBadge').textContent = '錯誤';
   document.getElementById('pageTitle').textContent = '無效的連結';
-  document.getElementById('formCard').innerHTML = '<p style="color:#e53935;font-size:14px;">此連結不正確，請重新掃描正確的 QR Code。</p>';
+  document.getElementById('formCard').innerHTML = '<p style="color:#e53935;font-size:14px;padding:8px 0;">此連結不正確，請重新掃描正確的 QR Code。</p>';
   throw new Error('invalid mode');
 }
 
-// 設定頁面標題
 if (mode === 'borrow') {
   document.getElementById('modeBadge').textContent = '借用登記';
   document.getElementById('modeBadge').className = 'mode-badge borrow';
   document.getElementById('pageTitle').textContent = '機器借用表單';
-  document.getElementById('pageSubtitle').textContent = '請填寫借用資訊後送出';
+  document.getElementById('pageSubtitle').textContent = '請確認機器狀態後填寫借用資訊';
   document.title = '機器借用表單';
+  document.getElementById('statusTableCard').style.display = 'block';
+  loadMachineStatus();
 } else {
   document.getElementById('modeBadge').textContent = '歸還登記';
   document.getElementById('modeBadge').className = 'mode-badge return';
@@ -302,7 +305,44 @@ if (mode === 'borrow') {
 }
 
 document.getElementById('timestampNote').textContent =
-  `掃描時間：${formatDateTime(now)}（由系統自動記錄，無法修改）`;
+  `掃描時間：${formatDateTime(now)}（系統自動記錄）`;
+
+// ============================================================
+// 機器總表
+// ============================================================
+async function loadMachineStatus() {
+  const body = document.getElementById('statusTableBody');
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=status`, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    if (data.ok && data.machines) {
+      const rows = MACHINES.map(m => {
+        const info = data.machines[m];
+        if (info && info.status === '借出中') {
+          return { machine: m, status: '借出中', borrowerName: info.borrowerName, location: info.location };
+        }
+        return { machine: m, status: '可借用', borrowerName: '', location: '' };
+      });
+      renderStatusTable(rows);
+      return;
+    }
+  } catch(e) {}
+  // 後端未設定時，預設全部可借用
+  renderStatusTable(MACHINES.map(m => ({ machine: m, status: '可借用' })));
+}
+
+function renderStatusTable(rows) {
+  const body = document.getElementById('statusTableBody');
+  body.innerHTML = rows.map(r => `
+    <div class="machine-row">
+      <div>
+        <div class="machine-name">${r.machine}</div>
+        ${r.status === '借出中' ? `<div class="machine-info">借用人：${r.borrowerName}　地點：${r.location}</div>` : ''}
+      </div>
+      <span class="badge ${r.status === '可借用' ? 'badge-available' : 'badge-borrowed'}">${r.status}</span>
+    </div>
+  `).join('');
+}
 
 // ============================================================
 // 借用表單
@@ -318,11 +358,6 @@ function renderBorrowForm() {
       <div class="error-msg">請填寫姓名</div>
     </div>
 
-    <div class="field" id="f-id">
-      <label>學號 / 員工編號</label>
-      <input type="text" id="borrowerId" placeholder="選填">
-    </div>
-
     <div class="field" id="f-machine">
       <label>借用機器 <span class="required">*</span></label>
       <select id="machineSelect">
@@ -334,33 +369,29 @@ function renderBorrowForm() {
 
     <div class="field" id="f-location">
       <label>借用地點 <span class="required">*</span></label>
-      <select id="locationSelect">
+      <select id="locationSelect" onchange="handleLocationChange()">
         <option value="">請選擇地點</option>
         ${locationOptions}
       </select>
-      <div class="error-msg">請選擇地點</div>
+      <div class="location-other" id="locationOther">
+        <input type="text" id="locationOtherInput" placeholder="請輸入地點名稱">
+      </div>
+      <div class="error-msg">請選擇或填寫地點</div>
     </div>
 
-    <div class="field-row">
-      <div class="field" id="f-date">
-        <label>借用日期 <span class="required">*</span></label>
-        <input type="date" id="borrowDate" value="${formatDate(now)}">
-      </div>
-      <div class="field" id="f-return">
-        <label>預計歸還時間 <span class="required">*</span></label>
-        <input type="time" id="returnTime">
-      </div>
+    <div class="field" id="f-date">
+      <label>借用日期</label>
+      <input type="date" id="borrowDate" value="${formatDate(now)}" readonly style="color:#888;">
     </div>
 
     <div class="field">
-      <label>備註（地點補充 / 用途說明）</label>
+      <label>備註</label>
       <textarea id="borrowNote" placeholder="選填"></textarea>
     </div>
 
     <div class="info-box">
-      ・借用 ID 將在送出後顯示，歸還時需要用到<br>
-      ・掃描時間已由系統自動記錄，無法手動修改<br>
-      ・如機器狀態為「借出中」將無法再次借用
+      ・借用 ID 將在送出後顯示，歸還時需要輸入，請截圖儲存<br>
+      ・借出中的機器無法重複借用
     </div>
 
     <br>
@@ -368,21 +399,20 @@ function renderBorrowForm() {
   `;
 }
 
+function handleLocationChange() {
+  const sel = document.getElementById('locationSelect').value;
+  document.getElementById('locationOther').style.display = sel === '其他' ? 'block' : 'none';
+}
+
 async function submitBorrow() {
   const name = document.getElementById('borrowerName').value.trim();
   const machine = document.getElementById('machineSelect').value;
-  const location = document.getElementById('locationSelect').value;
-  const date = document.getElementById('borrowDate').value;
-  const returnTime = document.getElementById('returnTime').value;
+  const locationSel = document.getElementById('locationSelect').value;
+  const locationOther = document.getElementById('locationOtherInput')?.value.trim() || '';
+  const location = locationSel === '其他' ? locationOther : locationSel;
 
   let valid = true;
-  const fields = [
-    ['f-name', name],
-    ['f-machine', machine],
-    ['f-location', location],
-    ['f-return', returnTime],
-  ];
-  fields.forEach(([id, val]) => {
+  [['f-name', name], ['f-machine', machine], ['f-location', location]].forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (!val) { el.classList.add('error'); valid = false; }
     else el.classList.remove('error');
@@ -398,12 +428,10 @@ async function submitBorrow() {
     action: 'borrow',
     loanId,
     borrowerName: name,
-    borrowerId: document.getElementById('borrowerId').value.trim(),
     machine,
     location,
-    borrowDate: date,
+    borrowDate: formatDate(now),
     borrowTime: formatTime(now),
-    returnTime,
     note: document.getElementById('borrowNote').value.trim(),
     scanTimestamp: now.toISOString(),
   };
@@ -415,32 +443,27 @@ async function submitBorrow() {
       body: JSON.stringify(payload),
       mode: 'no-cors',
     });
-  } catch(e) {
-    // no-cors 下不會拋錯，視為成功
-  }
+  } catch(e) {}
 
-  showBorrowSuccess(loanId, name, machine, location, returnTime);
+  showBorrowSuccess(loanId, name, machine, location);
 }
 
-function showBorrowSuccess(loanId, name, machine, location, returnTime) {
+function showBorrowSuccess(loanId, name, machine, location) {
+  document.getElementById('statusTableCard').style.display = 'none';
   document.getElementById('formCard').style.display = 'none';
-  const sc = document.getElementById('successCard');
-  sc.style.display = 'block';
+  document.getElementById('successCard').style.display = 'block';
   document.getElementById('successScreen').innerHTML = `
     <div class="success-icon borrow">✅</div>
     <h2>借用登記成功！</h2>
-    <p>請記錄你的借用 ID，歸還時需要輸入</p>
+    <p>請截圖保存借用 ID，歸還時需要輸入</p>
     <div class="loan-id">${loanId}</div>
-    <p style="font-size:13px;color:#888;margin-top:4px;">建議截圖儲存</p>
     <div class="info-box" style="margin-top:20px;text-align:left;">
       借用人：${name}<br>
       機器：${machine}<br>
       地點：${location}<br>
-      預計歸還：${returnTime}
+      時間：${formatDateTime(now)}
     </div>
-    <div class="success-screen" style="display:block;padding:0;margin-top:16px;">
-      <p style="font-size:12px;color:#bbb;">歸還時請掃描歸還 QR Code</p>
-    </div>
+    <p style="font-size:12px;color:#bbb;margin-top:16px;">歸還時請掃描歸還 QR Code</p>
   `;
 }
 
@@ -489,8 +512,7 @@ function renderReturnForm() {
 
     <div class="info-box">
       ・歸還時間由系統自動記錄<br>
-      ・若機器有損壞請務必如實填寫<br>
-      ・此為歸還專用表單，與借用表單為獨立系統
+      ・若機器有損壞請務必如實填寫
     </div>
 
     <br>
@@ -509,17 +531,15 @@ async function lookupLoan() {
   if (!id) return;
   const record = document.getElementById('foundRecord');
   record.style.display = 'block';
+  record.style.background = '#e3f2fd';
+  record.style.borderColor = '#90caf9';
+  record.style.color = '#1565c0';
   record.textContent = '查詢中...';
-
   try {
     const res = await fetch(`${APPS_SCRIPT_URL}?action=lookup&loanId=${encodeURIComponent(id)}`);
     const data = await res.json();
     if (data.found) {
-      record.innerHTML = `
-        ✓ 找到紀錄<br>
-        借用人：${data.borrowerName}　機器：${data.machine}<br>
-        借用地點：${data.location}　借用時間：${data.borrowTime}
-      `;
+      record.innerHTML = `✓ 找到紀錄<br>借用人：${data.borrowerName}　機器：${data.machine}<br>地點：${data.location}　借用時間：${data.borrowTime}`;
       document.getElementById('returnerName').value = data.borrowerName;
     } else {
       record.style.background = '#fce4ec';
@@ -528,7 +548,7 @@ async function lookupLoan() {
       record.textContent = '找不到此借用 ID，請確認後再試';
     }
   } catch(e) {
-    record.textContent = '（離線模式：無法自動查詢，請手動填寫）';
+    record.textContent = '（網路異常，請手動填寫姓名後送出）';
   }
 }
 
@@ -549,36 +569,25 @@ async function submitReturn() {
   btn.disabled = true;
   btn.textContent = '送出中...';
 
-  const payload = {
-    action: 'return',
-    loanId,
-    returnerName: name,
-    condition,
-    issueNote,
-    returnNote: document.getElementById('returnNote').value.trim(),
-    returnTimestamp: now.toISOString(),
-  };
-
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: 'return', loanId, returnerName: name, condition, issueNote,
+        returnNote: document.getElementById('returnNote').value.trim(),
+        returnTimestamp: now.toISOString(),
+      }),
       mode: 'no-cors',
     });
   } catch(e) {}
 
-  showReturnSuccess(loanId, name, condition);
-}
-
-function showReturnSuccess(loanId, name, condition) {
   document.getElementById('formCard').style.display = 'none';
-  const sc = document.getElementById('successCard');
-  sc.style.display = 'block';
+  document.getElementById('successCard').style.display = 'block';
   document.getElementById('successScreen').innerHTML = `
     <div class="success-icon return">📦</div>
     <h2>歸還登記成功！</h2>
-    <p>感謝您準時歸還，機器狀態已更新</p>
+    <p>感謝您歸還，機器狀態已更新</p>
     <div class="loan-id">${loanId}</div>
     <div class="info-box" style="margin-top:20px;text-align:left;">
       歸還人：${name}<br>
