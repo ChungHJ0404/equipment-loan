@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機器即時狀態</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif;
+    background: #f5f5f5;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
+  .updated {
+    font-size: 12px;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #43a047;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .machine-name { font-size: 17px; font-weight: 700; color: #1a1a1a; }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-available { background: #e8f5e9; color: #2e7d32; }
+  .badge-borrowed { background: #fff3e0; color: #e65100; }
+  .card-detail { font-size: 14px; color: #555; line-height: 1.9; }
+  .card-detail .val { color: #1a1a1a; font-weight: 500; }
+  .card-available-note { font-size: 14px; color: #999; }
+  .loading {
+    text-align: center;
+    padding: 48px 0;
+    color: #aaa;
+    font-size: 14px;
+  }
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #43a047;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box {
+    background: #fce4ec;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    color: #c62828;
+    font-size: 14px;
+  }
+  .refresh-note {
+    text-align: center;
+    font-size: 11px;
+    color: #ccc;
+    margin-top: 20px;
+  }
+  .summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .metric {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .metric-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+  .metric-value { font-size: 26px; font-weight: 700; }
+  .metric-value.borrowed { color: #e65100; }
+  .metric-value.available { color: #2e7d32; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>機器即時狀態</h1>
+    <div class="updated">
+      <div class="dot"></div>
+      <span id="updatedTime">載入中...</span>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="metric">
+      <div class="metric-label">借出中</div>
+      <div class="metric-value borrowed" id="countBorrowed">-</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">可借用</div>
+      <div class="metric-value available" id="countAvailable">-</div>
+    </div>
+  </div>
+
+  <div id="machineList">
+    <div class="loading">
+      <div class="spinner"></div>
+      載入中...
+    </div>
+  </div>
+
+  <div class="refresh-note">每30秒自動更新</div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDLfP46PMA2nZ0pRDEf71ECtzWyueyawidd6hEC_HKmClEIBJf_mo2HkhOdzKwq--V5Q/exec';
+const MACHINES = ['Konica 1', 'Konica 2', 'CVS 1'];
+
+function formatNow() {
+  const d = new Date();
+  return d.getFullYear() + '/' +
+    String(d.getMonth()+1).padStart(2,'0') + '/' +
+    String(d.getDate()).padStart(2,'0') + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' +
+    String(d.getMinutes()).padStart(2,'0') + ':' +
+    String(d.getSeconds()).padStart(2,'0');
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch(APPS_SCRIPT_URL + '?action=status', {
+      signal: AbortSignal.timeout(8000)
+    });
+    const data = await res.json();
+
+    if (!data.ok) throw new Error('回應錯誤');
+
+    const machines = data.machines || {};
+    let borrowedCount = 0;
+    let availableCount = 0;
+    let html = '';
+
+    MACHINES.forEach(m => {
+      const info = machines[m];
+      if (info && info.status === '借出中') {
+        borrowedCount++;
+        const borrower = info.actualUser
+          ? info.actualUser + '（代借：' + info.borrowerName + '）'
+          : info.borrowerName;
+        const time = info.borrowTime instanceof Object ? '' : String(info.borrowTime).slice(0,5);
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <div class="machine-name">${m}</div>
+              <span class="badge badge-borrowed">借出中</span>
+            </div>
+            <div class="card-detail">
+              借用人：<span class="val">${borrower || '－'}</span><br>
+              地點：<span class="val">${info.location || '－'}</span><br>
+              借用時間：<span class="val">${time || '－'}</span>
+            </div>
+          </div>`;
+      } else {
+        availableCount++;
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <div class="machine-name">${m}</div>
+              <span class="badge badge-available">可借用</span>
+            </div>
+            <div class="card-available-note">地點：血管檢查室</div>
+          </div>`;
+      }
+    });
+
+    document.getElementById('machineList').innerHTML = html;
+    document.getElementById('countBorrowed').textContent = borrowedCount;
+    document.getElementById('countAvailable').textContent = availableCount;
+    document.getElementById('updatedTime').textContent = '最後更新：' + formatNow();
+
+  } catch(e) {
+    document.getElementById('machineList').innerHTML =
+      '<div class="error-box">⚠ 無法載入資料，請重新整理頁面</div>';
+    document.getElementById('updatedTime').textContent = '載入失敗';
+  }
+}
+
+loadStatus();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>
